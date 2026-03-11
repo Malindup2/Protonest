@@ -1,4 +1,6 @@
 # Mini Task Management System
+<img width="1667" height="634" alt="image" src="https://github.com/user-attachments/assets/ee147b55-3c9e-4b63-bc16-c2849eaf4b44" />
+
 
 A full-stack, secured, role-based Task Management application built using **Next.js** mapped to a **Spring Boot** application using **PostgreSQL**. The complete project was orchestrated using exactly 10 distinct logical commits tracking the step-by-step functionality addition.
 
