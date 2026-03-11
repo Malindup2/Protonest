@@ -1,63 +1,298 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import api from '@/lib/axios';
+import { LogOut, Plus, Search, Filter, ArrowUpDown, Trash2, CheckCircle, Edit } from 'lucide-react';
+
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  dueDate: string;
+  createdAt: string;
+}
+
+interface PageData {
+  content: Task[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+}
+
+export default function Dashboard() {
+  const { user, logout } = useAuth();
+  const [tasks, setTasks] = useState<PageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Filters and Pagination State
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString(),
+        sort: `${sortField},${sortDir}`,
+      });
+      if (statusFilter) params.append('status', statusFilter);
+      if (priorityFilter) params.append('priority', priorityFilter);
+
+      const response = await api.get(`/tasks?${params.toString()}`);
+      setTasks(response.data);
+    } catch (error) {
+      console.error('Failed to fetch tasks', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, size, sortField, sortDir, statusFilter, priorityFilter]);
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+    }
+  }, [user, fetchTasks]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    TODO: 'bg-gray-100 text-gray-800',
+    IN_PROGRESS: 'bg-blue-100 text-blue-800',
+    DONE: 'bg-green-100 text-green-800'
+  };
+
+  const priorityColors: Record<string, string> = {
+    LOW: 'bg-green-100 text-green-800',
+    MEDIUM: 'bg-yellow-100 text-yellow-800',
+    HIGH: 'bg-red-100 text-red-800'
+  };
+
+  if (!user) return null; // Let the AuthContext handle redirection
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation Bar */}
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex-shrink-0 flex items-center">
+              <span className="text-xl font-bold text-indigo-600">TaskFlow</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-sm">
+                <span className="text-gray-500">Logged in as:</span>
+                <span className="ml-1 font-medium text-gray-900">{user.username} <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full ml-1">{user.role}</span></span>
+              </div>
+              <button
+                onClick={logout}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-gray-500 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                <LogOut className="h-4 w-4 mr-1.5" />
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="md:flex md:items-center md:justify-between mb-6">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+              Dashboard
+            </h2>
+          </div>
+          <div className="mt-4 flex md:mt-0 md:ml-4">
+            <button
+              onClick={() => alert('Will be implemented in Commit 9')}
+              className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <Plus className="-ml-1 mr-2 h-5 w-5" />
+              New Task
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Panel */}
+        <div className="bg-white p-4 shadow-sm rounded-lg mb-6 border border-gray-200">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex items-center text-gray-500 w-full md:w-auto">
+              <Filter className="h-5 w-5 mr-2" />
+              <span className="font-medium mr-4">Filters:</span>
+            </div>
+            
+            <div className="w-full md:w-48">
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                <option value="">All Statuses</option>
+                <option value="TODO">To Do</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="DONE">Done</option>
+              </select>
+            </div>
+
+            <div className="w-full md:w-48">
+              <select
+                value={priorityFilter}
+                onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                <option value="">All Priorities</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Task List */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
+          <ul className="divide-y divide-gray-200">
+            {/* Header for sorting */}
+            <li className="bg-gray-50 px-4 py-3 sm:px-6 flex text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="w-1/3 cursor-pointer flex items-center hover:text-gray-700" onClick={() => handleSort('title')}>
+                Task Info <ArrowUpDown className="ml-1 h-3 w-3" />
+              </div>
+              <div className="w-1/6 hidden sm:flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('status')}>
+                Status <ArrowUpDown className="ml-1 h-3 w-3" />
+              </div>
+              <div className="w-1/6 hidden sm:flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('priority')}>
+                Priority <ArrowUpDown className="ml-1 h-3 w-3" />
+              </div>
+              <div className="w-1/6 hidden md:flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('dueDate')}>
+                Due Date <ArrowUpDown className="ml-1 h-3 w-3" />
+              </div>
+              <div className="w-auto ml-auto text-right">
+                Actions
+              </div>
+            </li>
+
+            {loading ? (
+              <li className="px-4 py-8 text-center text-gray-500">Loading tasks...</li>
+            ) : tasks?.content.length === 0 ? (
+              <li className="px-4 py-8 text-center text-gray-500">No tasks found. Create one to get started!</li>
+            ) : (
+              tasks?.content.map((task) => (
+                <li key={task.id}>
+                  <div className="px-4 py-4 flex items-center sm:px-6 hover:bg-gray-50 transition duration-150 ease-in-out">
+                    <div className="w-1/3 min-w-0 pr-4">
+                      <p className="text-sm font-medium text-indigo-600 truncate">{task.title}</p>
+                      <p className="mt-1 flex items-center text-sm text-gray-500 truncate">
+                        {task.description || <span className="italic text-gray-400">No description</span>}
+                      </p>
+                    </div>
+                    
+                    <div className="w-1/6 hidden sm:flex">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[task.status]}`}>
+                        {task.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    
+                    <div className="w-1/6 hidden sm:flex">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${priorityColors[task.priority]}`}>
+                        {task.priority}
+                      </span>
+                    </div>
+                    
+                    <div className="w-1/6 hidden md:flex text-sm text-gray-500">
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'None'}
+                    </div>
+
+                    <div className="ml-auto flex items-center space-x-2">
+                       {task.status !== 'DONE' && (
+                         <button 
+                           onClick={() => alert('Mark as Done: Implement in Commit 9')}
+                           className="text-gray-400 hover:text-green-500 focus:outline-none" title="Mark as Done"
+                         >
+                           <CheckCircle className="h-5 w-5" />
+                         </button>
+                       )}
+                       <button 
+                         onClick={() => alert('Edit task: Implement in Commit 9')}
+                         className="text-gray-400 hover:text-indigo-500 focus:outline-none" title="Edit"
+                       >
+                         <Edit className="h-5 w-5" />
+                       </button>
+                       <button 
+                         onClick={() => alert('Delete task: Implement in Commit 9')}
+                         className="text-gray-400 hover:text-red-500 focus:outline-none" title="Delete"
+                       >
+                         <Trash2 className="h-5 w-5" />
+                       </button>
+                    </div>
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+          
+          {/* Pagination Controls */}
+          {tasks && tasks.totalPages > 1 && (
+             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={tasks.first}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(tasks.totalPages - 1, p + 1))}
+                    disabled={tasks.last}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing page <span className="font-medium">{page + 1}</span> of <span className="font-medium">{tasks.totalPages}</span> ({tasks.totalElements} tasks)
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        disabled={tasks.first}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${tasks.first ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setPage(p => Math.min(tasks.totalPages - 1, p + 1))}
+                        disabled={tasks.last}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${tasks.last ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+             </div>
+          )}
         </div>
       </main>
     </div>
