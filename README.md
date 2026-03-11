@@ -1,7 +1,5 @@
 # Mini Task Management System
 
-![Dashboard Demo](https://via.placeholder.com/800x400.png?text=Task+Management+System+-+Next.js+%2B+SpringBoot)
-
 A full-stack, secured, role-based Task Management application built using **Next.js** mapped to a **Spring Boot** application using **PostgreSQL**. The complete project was orchestrated using exactly 10 distinct logical commits tracking the step-by-step functionality addition.
 
 ## Project Overview

@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/axios';
 import { LogOut, Plus, Search, Filter, ArrowUpDown, Trash2, CheckCircle, Edit } from 'lucide-react';
 import TaskModal from '@/components/TaskModal';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 interface Task {
   id: number;
@@ -41,6 +43,9 @@ export default function Dashboard() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -89,15 +94,25 @@ export default function Dashboard() {
     HIGH: 'bg-red-100 text-red-800'
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this task?')) {
-      try {
-        await api.delete(`/tasks/${id}`);
-        fetchTasks();
-      } catch (error) {
-        console.error('Failed to delete task', error);
-        alert('Failed to delete task');
-      }
+  const confirmDelete = (id: number) => {
+    setTaskToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!taskToDelete) return;
+    setIsDeleting(true);
+    try {
+      await api.delete(`/tasks/${taskToDelete}`);
+      toast.success("Task deleted successfully!");
+      fetchTasks();
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error('Failed to delete task', error);
+      toast.error('Failed to delete task');
+    } finally {
+      setIsDeleting(false);
+      setTaskToDelete(null);
     }
   };
 
@@ -110,10 +125,11 @@ export default function Dashboard() {
         priority: task.priority,
         dueDate: task.dueDate
       });
+      toast.success("Task marked as done!");
       fetchTasks();
     } catch (error) {
       console.error('Failed to mark task as done', error);
-      alert('Failed to mark task as done');
+      toast.error('Failed to mark task as done');
     }
   };
 
@@ -132,11 +148,14 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-30 shadow-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold text-indigo-600">TaskFlow</span>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mr-2 shadow-inner">
+                <CheckCircle className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">TaskFlow</span>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm">
@@ -145,7 +164,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={logout}
-                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-gray-500 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="inline-flex items-center px-3 py-1.5 border border-gray-200 text-sm font-medium rounded-lg text-gray-600 bg-white hover:bg-gray-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
               >
                 <LogOut className="h-4 w-4 mr-1.5" />
                 Logout
@@ -165,7 +184,7 @@ export default function Dashboard() {
           <div className="mt-4 flex md:mt-0 md:ml-4">
             <button
               onClick={openNewTaskModal}
-              className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-md hover:shadow-lg text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:-translate-y-0.5"
             >
               <Plus className="-ml-1 mr-2 h-5 w-5" />
               New Task
@@ -174,7 +193,7 @@ export default function Dashboard() {
         </div>
 
         {/* Filters Panel */}
-        <div className="bg-white p-4 shadow-sm rounded-lg mb-6 border border-gray-200">
+        <div className="bg-white/80 backdrop-blur p-4 rounded-xl mb-6 border border-gray-100 shadow-sm">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="flex items-center text-gray-500 w-full md:w-auto">
               <Filter className="h-5 w-5 mr-2" />
@@ -210,8 +229,8 @@ export default function Dashboard() {
         </div>
 
         {/* Task List */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
-          <ul className="divide-y divide-gray-200">
+        <div className="bg-white shadow-sm overflow-hidden sm:rounded-xl border border-gray-100">
+          <ul className="divide-y divide-gray-100">
             {/* Header for sorting */}
             <li className="bg-gray-50 px-4 py-3 sm:px-6 flex text-xs font-medium text-gray-500 uppercase tracking-wider">
               <div className="w-1/3 cursor-pointer flex items-center hover:text-gray-700" onClick={() => handleSort('title')}>
@@ -232,12 +251,33 @@ export default function Dashboard() {
             </li>
 
             {loading ? (
-              <li className="px-4 py-8 text-center text-gray-500">Loading tasks...</li>
+              <li className="px-4 py-12 text-center text-gray-500">
+                <div className="animate-pulse flex flex-col items-center">
+                  <div className="h-10 w-10 bg-gray-200 rounded-full mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/6"></div>
+                </div>
+              </li>
             ) : tasks?.content.length === 0 ? (
-              <li className="px-4 py-8 text-center text-gray-500">No tasks found. Create one to get started!</li>
+              <li className="px-4 py-16 text-center text-gray-500">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-200 rounded-full flex items-center justify-center mb-4">
+                    <CheckCircle className="h-8 w-8" />
+                  </div>
+                  <p className="text-lg font-medium text-gray-900 mb-1">No tasks found</p>
+                  <p className="text-sm text-gray-500 mb-4">Get started by creating a new task.</p>
+                  <button
+                    onClick={openNewTaskModal}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <Plus className="-ml-1 mr-2 h-5 w-5 text-gray-400" />
+                    New Task
+                  </button>
+                </div>
+              </li>
             ) : (
               tasks?.content.map((task) => (
-                <li key={task.id}>
+                <li key={task.id} className="group">
                   <div className="px-4 py-4 flex items-center sm:px-6 hover:bg-gray-50 transition duration-150 ease-in-out">
                     <div className="w-1/3 min-w-0 pr-4">
                       <p className="text-sm font-medium text-indigo-600 truncate">{task.title}</p>
@@ -273,13 +313,13 @@ export default function Dashboard() {
                        )}
                        <button 
                          onClick={() => openEditTaskModal(task)}
-                         className="text-gray-400 hover:text-indigo-500 focus:outline-none" title="Edit"
+                         className="text-gray-400 hover:text-indigo-600 focus:outline-none p-1 rounded-full hover:bg-indigo-50 transition-colors" title="Edit"
                        >
                          <Edit className="h-5 w-5" />
                        </button>
                        <button 
-                         onClick={() => handleDelete(task.id)}
-                         className="text-gray-400 hover:text-red-500 focus:outline-none" title="Delete"
+                         onClick={() => confirmDelete(task.id)}
+                         className="text-gray-400 hover:text-red-600 focus:outline-none p-1 rounded-full hover:bg-red-50 transition-colors" title="Delete"
                        >
                          <Trash2 className="h-5 w-5" />
                        </button>
@@ -345,6 +385,14 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)} 
         onSaved={fetchTasks} 
         initialData={editingTask} 
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        loading={isDeleting}
       />
     </div>
   );

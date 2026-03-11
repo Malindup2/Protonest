@@ -11,5 +11,5 @@ public class RegisterReq {
     @NotBlank(message = "Password is required")
     private String password;
 
-    private String role; // Optional, defaults to USER
+    private String role; //I can chnage it later if need
 }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import toast from 'react-hot-toast';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -20,6 +21,7 @@ export default function RegisterPage() {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -27,6 +29,7 @@ export default function RegisterPage() {
 
     try {
       await api.post('/auth/register', { username, password, role });
+      toast.success('Registered successfully! Please log in.');
       router.push('/login?registered=true');
     } catch (err: any) {
       if (err.response && err.response.data && err.response.data.message) {
@@ -36,6 +39,12 @@ export default function RegisterPage() {
         setError(issues);
       } else {
         setError('An error occurred during registration. Please try again.');
+        toast.error('An error occurred during registration.');
+      }
+      if (err.response?.data?.message) {
+         toast.error(err.response.data.message);
+      } else if (err.response?.data?.validationErrors) {
+         toast.error(Object.values(err.response.data.validationErrors).join(', '));
       }
     } finally {
       setLoading(false);
