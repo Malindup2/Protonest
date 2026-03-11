@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/axios';
 import { LogOut, Plus, Search, Filter, ArrowUpDown, Trash2, CheckCircle, Edit } from 'lucide-react';
+import TaskModal from '@/components/TaskModal';
 
 interface Task {
   id: number;
@@ -36,6 +37,10 @@ export default function Dashboard() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [sortField, setSortField] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -84,6 +89,44 @@ export default function Dashboard() {
     HIGH: 'bg-red-100 text-red-800'
   };
 
+  const handleDelete = async (id: number) => {
+    if (confirm('Are you sure you want to delete this task?')) {
+      try {
+        await api.delete(`/tasks/${id}`);
+        fetchTasks();
+      } catch (error) {
+        console.error('Failed to delete task', error);
+        alert('Failed to delete task');
+      }
+    }
+  };
+
+  const handleMarkDone = async (task: Task) => {
+    try {
+      await api.put(`/tasks/${task.id}`, {
+        title: task.title,
+        description: task.description,
+        status: 'DONE',
+        priority: task.priority,
+        dueDate: task.dueDate
+      });
+      fetchTasks();
+    } catch (error) {
+      console.error('Failed to mark task as done', error);
+      alert('Failed to mark task as done');
+    }
+  };
+
+  const openNewTaskModal = () => {
+    setEditingTask(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
+  };
+
   if (!user) return null; // Let the AuthContext handle redirection
 
   return (
@@ -121,7 +164,7 @@ export default function Dashboard() {
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4">
             <button
-              onClick={() => alert('Will be implemented in Commit 9')}
+              onClick={openNewTaskModal}
               className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               <Plus className="-ml-1 mr-2 h-5 w-5" />
@@ -222,20 +265,20 @@ export default function Dashboard() {
                     <div className="ml-auto flex items-center space-x-2">
                        {task.status !== 'DONE' && (
                          <button 
-                           onClick={() => alert('Mark as Done: Implement in Commit 9')}
+                           onClick={() => handleMarkDone(task)}
                            className="text-gray-400 hover:text-green-500 focus:outline-none" title="Mark as Done"
                          >
                            <CheckCircle className="h-5 w-5" />
                          </button>
                        )}
                        <button 
-                         onClick={() => alert('Edit task: Implement in Commit 9')}
+                         onClick={() => openEditTaskModal(task)}
                          className="text-gray-400 hover:text-indigo-500 focus:outline-none" title="Edit"
                        >
                          <Edit className="h-5 w-5" />
                        </button>
                        <button 
-                         onClick={() => alert('Delete task: Implement in Commit 9')}
+                         onClick={() => handleDelete(task.id)}
                          className="text-gray-400 hover:text-red-500 focus:outline-none" title="Delete"
                        >
                          <Trash2 className="h-5 w-5" />
@@ -295,6 +338,14 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Task Modal Container */}
+      <TaskModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSaved={fetchTasks} 
+        initialData={editingTask} 
+      />
     </div>
   );
 }
